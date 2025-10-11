@@ -1,0 +1,15 @@
+{
+  "name": "Thesis",
+  "symbol": "THE",
+  "description": "Thesis (THE): a people-powered digital currency focused on equity and utility.",
+  "image": "https://<your-domain>/thesis_logo_512.png",
+  "attributes": [],
+  "properties": {
+    "files": [
+      {
+        "uri": "https://<your-domain>/thesis_logo_512.png",
+        "type": "image/png"
+      }
+    ]
+  }
+}
