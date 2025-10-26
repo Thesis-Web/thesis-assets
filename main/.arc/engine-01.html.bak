@@ -1,0 +1,121 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hard Work Pays Off!</title>
+<style>
+  :root { --fg:#e6eef7; --muted:#9db3c7; --panel:#0b1522; --acc:#39c1ff; }
+  body { margin:0; min-height:100svh; background:radial-gradient(130% 100% at 50% 0%, #061018 0%, #02070c 60%, #000 100%); color:var(--fg); font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; display:grid; place-items:center; }
+  .wrap { max-width:900px; padding:32px 20px; text-align:center; }
+  .hud { background:rgba(7,16,28,.65); border:1px solid #122235; border-radius:18px; padding:24px 20px; box-shadow:0 10px 40px rgba(0,0,0,.4), inset 0 0 80px rgba(57,193,255,.08); backdrop-filter:saturate(130%) blur(6px); }
+  h1 { margin:0 0 8px; font-weight:650; letter-spacing:.2px; }
+  h2 { margin:10px 0 18px; font-weight:500; color:var(--muted); }
+  .coin { width:140px; height:140px; margin:20px auto; object-fit:contain; filter:drop-shadow(0 8px 24px rgba(0,0,0,.5)); }
+  .grid { display:grid; gap:12px; margin:18px auto 0; grid-template-columns:repeat(2,minmax(0,1fr)); max-width:620px; }
+  .card { background:var(--panel); border:1px solid #13263a; border-radius:14px; padding:16px; text-align:left; }
+  .k { font-size:.78rem; color:var(--muted); letter-spacing:.3px; }
+  .v { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace; font-size:.92rem; word-break:break-all; }
+  .big { font-size:2.2rem; font-weight:700; color:var(--acc); letter-spacing:.5px; }
+  .btn { display:inline-block; margin-top:18px; padding:10px 16px; background:#0f2236; border:1px solid #1c3a58; border-radius:12px; color:var(--fg); text-decoration:none; font-weight:600; }
+  .btn:hover { background:#132a43; }
+  .muter { opacity:.8 }
+</style>
+
+<div class="wrap">
+  <div class="hud">
+    <h1>“Hard Work Pays Off.”</h1>
+    <h2 id="jarvis">Jarvis: calibrating your thrusters…</h2>
+    <img class="coin" src="/assets/thesis_logo_512.png" alt="Thesis Coin">
+    <div class="grid">
+      <div class="card"><div class="k">Device class</div><div class="v" id="dev">–</div></div>
+      <div class="card"><div class="k">Estimated Touch Down</div><div class="v"><span id="eta" class="big">—</span> <span class="muter">sec</span></div></div>
+      <div class="card"><div class="k">Difficulty (leading zero bits)</div><div class="v" id="diff">–</div></div>
+      <div class="card"><div class="k">Live hashrate</div><div class="v" id="hps">–</div></div>
+    </div>
+
+    <a id="go" class="btn" href="#">Begin Sequence</a>
+
+    <div class="grid" id="out" style="display:none">
+      <div class="card"><div class="k">Nonce</div><div class="v" id="nonce">–</div></div>
+      <div class="card"><div class="k">SHA-256 Hash</div><div class="v" id="hash">–</div></div>
+    </div>
+  </div>
+</div>
+<script>
+(async () => {
+  const $ = id => document.getElementById(id);
+  const enc = txt => new TextEncoder().encode(txt);
+  const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  const ua = navigator.userAgent.toLowerCase();
+  const mobile = /iphone|ipad|ipod|android|mobile/.test(ua);
+  $('dev').textContent = mobile ? 'Mobile / Tablet' : 'Desktop / Laptop';
+
+  async function bench() {
+    const start = performance.now();
+    let n = 0;
+    while (performance.now() - start < 1000) {
+      await crypto.subtle.digest('SHA-256', enc('bench'+Math.random()+n));
+      n++;
+    }
+    return n;
+  }
+
+  function chooseDifficulty(hps) {
+    const target = mobile ? 75 : 60 + Math.random()*30;
+    const bits = Math.max(18, Math.min(26, Math.round(Math.log2(hps * target))));
+    return { bits, target };
+  }
+
+  function hasLeadingZeroBits(bytes, bits) {
+    let whole = bits >> 3, rem = bits & 7;
+    for (let i = 0; i < whole; i++) if (bytes[i] !== 0) return false;
+    if (rem === 0) return true;
+    const mask = 0xFF << (8 - rem) & 0xFF;
+    return (bytes[whole] & mask) === 0;
+  }
+
+  function etaSeconds(done, hps, bits) {
+    const exp = Math.pow(2, bits);
+    const remain = Math.max(0, exp - done);
+    return Math.ceil(remain / Math.max(1, hps));
+  }
+  $('go').addEventListener('click', async (e) => {
+    e.preventDefault();
+    $('go').style.display = 'none';
+
+    $('jarvis').textContent = 'Jarvis: pinging engines… measuring thrust.';
+    const hps0 = await bench();
+    $('hps').textContent = `${hps0.toLocaleString()} H/s`;
+
+    const { bits, target } = chooseDifficulty(hps0);
+    $('diff').textContent = bits;
+    $('eta').textContent  = Math.round(target);
+    $('jarvis').textContent = `Jarvis: trajectory locked. Expect ~${Math.round(target)} seconds. Stand by…`;
+
+    let tries = 0, found = false, nonce = crypto.getRandomValues(new Uint32Array(1))[0] >>> 0;
+    const seed = (Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));
+    let lastTick = performance.now();
+
+    while (!found) {
+      const msg = seed + ':' + nonce;
+      const dig = await crypto.subtle.digest('SHA-256', enc(msg));
+      const bytes = new Uint8Array(dig);
+      tries++;
+      if (hasLeadingZeroBits(bytes, bits)) {
+        found = true;
+        $('out').style.display = '';
+        $('nonce').textContent = nonce.toString();
+        $('hash').textContent  = hex(dig);
+        $('jarvis').textContent = `Jarvis: touchdown confirmed.`;
+        break;
+      }
+      const now = performance.now();
+      if (now - lastTick > 500) { $('eta').textContent = etaSeconds(tries, hps0, bits); lastTick = now; }
+      nonce = (nonce + 1) >>> 0;
+      if (tries % 500 === 0) await sleep(0);
+    }
+    $('jarvis').textContent = 'Jarvis: splendid burn, Commander. Transmit your Nonce + Hash to @TheGunnerStream on X via Direct Message for mission credit.';
+  });
+})();
+</script>

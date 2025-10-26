@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /
+
+# Allow only the AI verifier corridor
+Allow: /main/.arc/
+
+Sitemap: https://www.thesisweb.org/sitemap.xml

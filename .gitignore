@@ -1,0 +1,10 @@
+*.key
+*.pem
+*.crt
+*.env
+*.log
+**/.DS_Store
+**/node_modules/
+**/.cache/
+**/.well-known/acme-challenge/
+tmp/

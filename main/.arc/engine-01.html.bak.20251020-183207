@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>Work</title>
+<p id=x class=mono style="font-family:monospace;margin:40px">Mining…</p>
+<script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+<script>
+const seed="Thesis-elon";const p=document.getElementById('x');let n=0;
+function tick(){for(let i=0;i<5000;i++){const h=CryptoJS.SHA256(seed+n).toString();
+ if(h.startsWith("00000")){p.textContent=`Solved n=${n} h=${h}`;return} n++}
+ requestAnimationFrame(tick)} tick();
+</script>
